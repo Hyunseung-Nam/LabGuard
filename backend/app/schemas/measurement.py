@@ -11,7 +11,6 @@ class MeasurementCreate(BaseModel):
 
 
 class MeasurementResponse(BaseModel):
-    id: int
     time: datetime
     device_id: str
     metric: str
