@@ -2,6 +2,7 @@ import logging
 import logging.config
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.db.session import engine
@@ -24,6 +25,12 @@ async def lifespan(app: FastAPI):
     logger.info("LabGuard 백엔드 시작")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # measurements 테이블을 TimescaleDB Hypertable로 변환
+        # if_not_exists => TRUE: 이미 변환된 경우 오류 없이 스킵
+        await conn.execute(text(
+            "SELECT create_hypertable('measurements', 'time', if_not_exists => TRUE)"
+        ))
+        logger.info("TimescaleDB Hypertable 설정 완료")
     yield
     logger.info("LabGuard 백엔드 종료")
     await engine.dispose()
