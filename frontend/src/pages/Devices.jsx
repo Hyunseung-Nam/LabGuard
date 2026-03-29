@@ -1,11 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Cpu, Add } from 'iconsax-react'
-
-const DEVICES = [
-  { id: 1, name: '항온항습기 #1', protocol: 'RS-232', location: 'B동 512호', status: 'alert', lastSeen: '방금 전' },
-  { id: 2, name: '진공 펌프 #2', protocol: 'TCP/IP', location: 'B동 512호', status: 'normal', lastSeen: '방금 전' },
-  { id: 3, name: '항온항습기 #3', protocol: 'RS-232', location: 'A동 308호', status: 'normal', lastSeen: '1분 전' },
-  { id: 4, name: '오실로스코프 #1', protocol: 'USB-TMC', location: 'A동 308호', status: 'offline', lastSeen: '3일 전' },
-]
+import { api } from '../api/client'
 
 const statusLabel = {
   normal: { text: '정상', className: 'text-emerald-600 bg-emerald-50' },
@@ -15,6 +10,20 @@ const statusLabel = {
 }
 
 export default function Devices() {
+  const [devices, setDevices] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.getDevices()
+      .then(setDevices)
+      .catch((e) => console.error('장비 목록 로드 실패:', e))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return <div className="text-sm text-gray-400 mt-20 text-center">불러오는 중...</div>
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -36,29 +45,37 @@ export default function Devices() {
               <th className="px-5 py-3 font-medium">프로토콜</th>
               <th className="px-5 py-3 font-medium">위치</th>
               <th className="px-5 py-3 font-medium">상태</th>
-              <th className="px-5 py-3 font-medium">마지막 수신</th>
             </tr>
           </thead>
           <tbody>
-            {DEVICES.map((d) => {
-              const s = statusLabel[d.status]
-              return (
-                <tr key={d.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 flex items-center gap-2 text-gray-800 font-medium">
-                    <Cpu size={15} color="#9ca3af" />
-                    {d.name}
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">{d.protocol}</td>
-                  <td className="px-5 py-3.5 text-gray-500">{d.location}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.className}`}>
-                      {s.text}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-400 text-xs">{d.lastSeen}</td>
-                </tr>
-              )
-            })}
+            {devices.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-5 py-10 text-center text-gray-300 text-sm">
+                  등록된 장비가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              devices.map((d) => {
+                const s = statusLabel['normal']
+                return (
+                  <tr key={d.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <span className="flex items-center gap-2 text-gray-800 font-medium">
+                        <Cpu size={15} color="#9ca3af" />
+                        {d.name}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">{d.protocol}</td>
+                    <td className="px-5 py-3.5 text-gray-500">{d.location ?? '—'}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.className}`}>
+                        {s.text}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
           </tbody>
         </table>
       </div>
