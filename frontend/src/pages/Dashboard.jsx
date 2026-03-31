@@ -3,9 +3,9 @@ import DeviceCard from '../components/DeviceCard'
 import AlertItem from '../components/AlertItem'
 import { api } from '../api/client'
 
-function deriveStatus(device) {
-  // 임시: threshold 설정이 생기면 측정값 기반으로 교체
-  return 'normal'
+function deriveStatus(deviceId, alerts) {
+  const hasAlert = alerts.some((a) => a.device_id === deviceId && !a.notified)
+  return hasAlert ? 'alert' : 'normal'
 }
 
 function formatTime(iso) {
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState({ total_devices: 0, alert_count: 0, unnotified_alert_count: 0 })
   const [devices, setDevices] = useState([])
   const [alerts, setAlerts] = useState([])
+  const [latestMap, setLatestMap] = useState({})  // device_id → 최신 측정값
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,6 +38,19 @@ export default function Dashboard() {
         setSummary(s)
         setDevices(d)
         setAlerts(a.slice(0, 5))
+
+        // 각 장비의 최신 측정값 1건씩 병렬 조회
+        const entries = await Promise.all(
+          d.map(async (dev) => {
+            try {
+              const meas = await api.getMeasurements(dev.id, { limit: 1 })
+              return [dev.id, meas[0] ?? null]
+            } catch {
+              return [dev.id, null]
+            }
+          })
+        )
+        setLatestMap(Object.fromEntries(entries))
       } catch (e) {
         console.error('대시보드 로드 실패:', e)
       } finally {
@@ -44,6 +58,10 @@ export default function Dashboard() {
       }
     }
     load()
+
+    // 10초마다 갱신
+    const timer = setInterval(load, 10000)
+    return () => clearInterval(timer)
   }, [])
 
   const stats = [
@@ -77,16 +95,23 @@ export default function Dashboard() {
         <p className="text-sm text-gray-300 mb-10">등록된 장비가 없습니다.</p>
       ) : (
         <div className="grid grid-cols-2 gap-4 mb-10">
-          {devices.map((d) => (
-            <DeviceCard
-              key={d.id}
-              name={d.name}
-              location={d.location}
-              metric={d.config?.metric ?? '—'}
-              value="—"
-              status={deriveStatus(d)}
-            />
-          ))}
+          {devices.map((d) => {
+            const latest = latestMap[d.id]
+            const value = latest
+              ? `${latest.raw_value?.toFixed(2)} ${latest.unit ?? ''}`
+              : '—'
+            const metric = latest?.metric ?? '—'
+            return (
+              <DeviceCard
+                key={d.id}
+                name={d.name}
+                location={d.location}
+                metric={metric}
+                value={value}
+                status={deriveStatus(d.id, alerts)}
+              />
+            )
+          })}
         </div>
       )}
 
@@ -100,7 +125,7 @@ export default function Dashboard() {
             <AlertItem
               key={a.id}
               severity={a.severity.toLowerCase()}
-              deviceName={a.device_id}
+              deviceName={devices.find((d) => d.id === a.device_id)?.name ?? a.device_id}
               message={a.message}
               time={formatTime(a.time)}
             />

@@ -1,2 +1,15 @@
 prompt.txt
 docs/
+
+# 환경변수 (토큰, 비밀번호)
+.env
+.env.*
+!.env.example
+
+# 파이썬 가상환경
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/

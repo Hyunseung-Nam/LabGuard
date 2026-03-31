@@ -9,11 +9,15 @@ function formatTime(iso) {
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState([])
+  const [deviceMap, setDeviceMap] = useState({})  // device_id → name
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.getAlerts()
-      .then(setAlerts)
+    Promise.all([api.getAlerts(), api.getDevices()])
+      .then(([alts, devs]) => {
+        setAlerts(alts)
+        setDeviceMap(Object.fromEntries(devs.map((d) => [d.id, d.name])))
+      })
       .catch((e) => console.error('알림 로드 실패:', e))
       .finally(() => setLoading(false))
   }, [])
@@ -35,7 +39,7 @@ export default function Alerts() {
             <AlertItem
               key={a.id}
               severity={a.severity.toLowerCase()}
-              deviceName={a.device_id}
+              deviceName={deviceMap[a.device_id] ?? a.device_id}
               message={a.message}
               time={formatTime(a.time)}
             />

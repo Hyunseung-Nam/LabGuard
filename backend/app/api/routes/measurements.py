@@ -1,14 +1,81 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.measurement import Measurement
+from app.models.device import Device
+from app.models.alert import AlertEvent
 from app.schemas.measurement import MeasurementCreate, MeasurementResponse
+from app.core.config import settings
+from app.services.telegram import send_alert
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/measurements", tags=["measurements"])
+
+
+async def _check_threshold_and_alert(
+    db: AsyncSession,
+    device: Device,
+    metric: str,
+    value: float,
+    measured_at: datetime,
+) -> None:
+    """
+    목적: 측정값이 장비 임계치를 초과하면 AlertEvent를 생성합니다.
+    Args:
+        db: DB 세션.
+        device: 장비 모델 인스턴스.
+        metric: 측정 항목명 (temperature, pressure 등).
+        value: 측정값.
+        measured_at: 측정 시각 (쿨다운 기준).
+    Returns: 없음.
+    Side Effects: 임계치 초과 시 AlertEvent를 DB에 추가합니다.
+    Raises: 없음 (오류는 로그 처리).
+    """
+    threshold = (device.threshold or {}).get(metric)
+    if not threshold:
+        return
+
+    min_val = threshold.get("min")
+    max_val = threshold.get("max")
+    exceeded_threshold = None
+    message = None
+
+    if max_val is not None and value > max_val:
+        exceeded_threshold = max_val
+        message = f"[{device.name}] {metric} {value:.3f}이 상한값 {max_val}을 초과했습니다."
+    elif min_val is not None and value < min_val:
+        exceeded_threshold = min_val
+        message = f"[{device.name}] {metric} {value:.3f}이 하한값 {min_val} 미만입니다."
+
+    if exceeded_threshold is None:
+        return
+
+    # 쿨다운: 동일 장비+측정항목 알림이 최근 N초 내 있으면 생성 안 함
+    cooldown_since = measured_at - timedelta(seconds=settings.ALERT_COOLDOWN_SECONDS)
+    result = await db.execute(
+        select(AlertEvent)
+        .where(AlertEvent.device_id == device.id)
+        .where(AlertEvent.metric == metric)
+        .where(AlertEvent.time >= cooldown_since)
+        .limit(1)
+    )
+    if result.scalar_one_or_none():
+        logger.debug("알림 쿨다운 중: device_id=%s, metric=%s", device.id, metric)
+        return
+
+    db.add(AlertEvent(
+        device_id=device.id,
+        severity="ALERT",
+        metric=metric,
+        value=value,
+        threshold=exceeded_threshold,
+        message=message,
+    ))
+    logger.warning("이상값 감지 → 알림 생성: %s", message)
+    await send_alert(f"⚠️ <b>LabGuard 알림</b>\n{message}")
 
 
 @router.get("", response_model=list[MeasurementResponse])
@@ -59,6 +126,16 @@ async def create_measurement(payload: MeasurementCreate, db: AsyncSession = Depe
     try:
         measurement = Measurement(**payload.model_dump())
         db.add(measurement)
+
+        # 이상값 감지: 장비 임계치와 비교 후 필요 시 AlertEvent 생성
+        if payload.raw_value is not None:
+            device = await db.get(Device, payload.device_id)
+            if device:
+                await _check_threshold_and_alert(
+                    db, device, payload.metric, payload.raw_value,
+                    measurement.time or datetime.now(),
+                )
+
         await db.commit()
         await db.refresh(measurement)
         return measurement

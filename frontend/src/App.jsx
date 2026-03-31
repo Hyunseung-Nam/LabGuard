@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Devices from './pages/Devices'
+import DeviceDetail from './pages/DeviceDetail'
 import Alerts from './pages/Alerts'
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/devices" element={<Devices />} />
+          <Route path="/devices/:id" element={<DeviceDetail />} />
           <Route path="/alerts" element={<Alerts />} />
         </Routes>
       </main>

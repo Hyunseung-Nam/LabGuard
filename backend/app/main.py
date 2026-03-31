@@ -44,7 +44,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # 프론트 개발 서버
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],  # 프론트 개발 서버
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
