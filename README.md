@@ -90,6 +90,13 @@ LabGuard는 이 공백을 채웁니다.
 - 실제 장비 없이 가짜 측정값 생성 (`backend/simulator.py`)
 - 온도계/기압계/전압계 3개 장비, 10% 확률 이상값 주입
 
+**Edge Agent**
+- RS-232로 실험 장비에서 측정값을 읽어 LabGuard 서버로 전송 (`edge_agent/`)
+- 타겟 장비: JEIO TECH 항온항습기 (WBTC/WEVC 시리즈)
+- 드라이버 구조: `arduino_json` (테스트용) / `jeiotech` (실제 장비)
+- 포트 자동 감지, 연결 끊김 시 자동 재연결
+- Arduino 에뮬레이터 스케치 포함 (`edge_agent/emulator/emulator.ino`)
+
 ---
 
 ## 로드맵
