@@ -3,12 +3,19 @@ import DeviceCard from '../components/DeviceCard'
 import AlertItem from '../components/AlertItem'
 import { api } from '../api/client'
 
-function deriveStatus(deviceId, alerts) {
-  const latest = alerts.filter((a) => a.device_id === deviceId).at(0)
-  if (!latest) return 'normal'
-  const age = Date.now() - new Date(latest.time).getTime()
-  if (age > 60_000) return 'normal'
-  return latest.severity.toLowerCase()
+function deriveStatus(deviceId, alerts, latestMeasurement) {
+  // 마지막 측정값이 2분 이상 없으면 오프라인
+  if (latestMeasurement) {
+    const dataAge = Date.now() - new Date(latestMeasurement.time).getTime()
+    if (dataAge > 120_000) return 'offline'
+  }
+  // 최근 60초 이내 알림이 있으면 severity 표시
+  const latestAlert = alerts.filter((a) => a.device_id === deviceId).at(0)
+  if (latestAlert) {
+    const alertAge = Date.now() - new Date(latestAlert.time).getTime()
+    if (alertAge <= 60_000) return latestAlert.severity.toLowerCase()
+  }
+  return latestMeasurement ? 'normal' : 'offline'
 }
 
 function formatTime(iso) {
@@ -110,7 +117,7 @@ export default function Dashboard() {
                 location={d.location}
                 metric={metric}
                 value={value}
-                status={deriveStatus(d.id, alerts)}
+                status={deriveStatus(d.id, alerts, latestMap[d.id])}
               />
             )
           })}
