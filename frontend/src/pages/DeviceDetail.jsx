@@ -17,6 +17,7 @@ export default function DeviceDetail() {
   const [measurements, setMeasurements] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [timeRange, setTimeRange] = useState('5m')  // '1m' | '5m' | 'all'
 
   useEffect(() => {
     async function load() {
@@ -62,8 +63,13 @@ export default function DeviceDetail() {
     return <div className="text-sm text-gray-400 mt-20 text-center">장비를 찾을 수 없습니다.</div>
   }
 
+  // 시간 범위 필터 적용
+  const rangeMs = timeRange === '1m' ? 60_000 : timeRange === '5m' ? 300_000 : Infinity
+  const cutoff = Date.now() - rangeMs
+  const filtered = measurements.filter((m) => new Date(m.time).getTime() >= cutoff)
+
   // 측정항목별로 그룹핑
-  const metricGroups = measurements.reduce((acc, m) => {
+  const metricGroups = filtered.reduce((acc, m) => {
     if (!acc[m.metric]) acc[m.metric] = []
     acc[m.metric].push({
       time: new Date(m.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -73,6 +79,12 @@ export default function DeviceDetail() {
     })
     return acc
   }, {})
+
+  const RANGE_BUTTONS = [
+    { label: '1분', value: '1m' },
+    { label: '5분', value: '5m' },
+    { label: '전체', value: 'all' },
+  ]
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -109,34 +121,53 @@ export default function DeviceDetail() {
           아직 측정 데이터가 없습니다.
         </div>
       ) : (
-        Object.entries(metricGroups).map(([metric, data]) => (
-          <div key={metric} className="bg-white border border-gray-100 rounded-xl p-6 mb-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{metric}</h2>
-              <span className="text-xs text-gray-400">{data[data.length - 1]?.unit ?? ''}</span>
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                  formatter={(v, name) => [
-                    `${v?.toFixed(3)} ${data[0]?.unit ?? ''}`,
-                    name === 'raw' ? '측정값' : '필터값',
-                  ]}
-                />
-                <Line type="monotone" dataKey="raw" stroke="#3b82f6" dot={false} strokeWidth={1.5} name="raw" />
-                <Line type="monotone" dataKey="filtered" stroke="#10b981" dot={false} strokeWidth={1.5} strokeDasharray="4 2" name="filtered" />
-              </LineChart>
-            </ResponsiveContainer>
+        <>
+          {/* 시간 범위 버튼 */}
+          <div className="flex gap-1 mb-4">
+            {RANGE_BUTTONS.map((btn) => (
+              <button
+                key={btn.value}
+                onClick={() => setTimeRange(btn.value)}
+                className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                  timeRange === btn.value
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white border border-gray-200 text-gray-500 hover:border-blue-300'
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
           </div>
-        ))
+
+          {Object.entries(metricGroups).map(([metric, data]) => (
+            <div key={metric} className="bg-white border border-gray-100 rounded-xl p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{metric}</h2>
+                <span className="text-xs text-gray-400">{data[data.length - 1]?.unit ?? ''}</span>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                    formatter={(v, name) => [
+                      `${v?.toFixed(3)} ${data[0]?.unit ?? ''}`,
+                      name === 'raw' ? '측정값' : '필터값',
+                    ]}
+                  />
+                  <Line type="monotone" dataKey="raw" stroke="#3b82f6" dot={false} strokeWidth={1.5} name="raw" />
+                  <Line type="monotone" dataKey="filtered" stroke="#10b981" dot={false} strokeWidth={1.5} strokeDasharray="4 2" name="filtered" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+        </>
       )}
     </div>
   )

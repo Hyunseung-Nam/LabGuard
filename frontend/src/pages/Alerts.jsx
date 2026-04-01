@@ -12,14 +12,17 @@ export default function Alerts() {
   const [deviceMap, setDeviceMap] = useState({})  // device_id → name
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    Promise.all([api.getAlerts(), api.getDevices()])
+  function loadData() {
+    return Promise.all([api.getAlerts(), api.getDevices()])
       .then(([alts, devs]) => {
         setAlerts(alts)
         setDeviceMap(Object.fromEntries(devs.map((d) => [d.id, d.name])))
       })
       .catch((e) => console.error('알림 로드 실패:', e))
-      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadData().finally(() => setLoading(false))
   }, [])
 
   if (loading) {

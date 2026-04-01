@@ -5,8 +5,8 @@ import { api } from '../api/client'
 
 const statusLabel = {
   normal: { text: '정상', className: 'text-emerald-600 bg-emerald-50' },
-  warning: { text: '경고', className: 'text-yellow-600 bg-yellow-50' },
-  alert: { text: '알림', className: 'text-red-600 bg-red-50' },
+  high: { text: '상한 초과', className: 'text-red-600 bg-red-50' },
+  low: { text: '하한 미달', className: 'text-blue-600 bg-blue-50' },
   offline: { text: '오프라인', className: 'text-gray-500 bg-gray-100' },
 }
 
@@ -97,8 +97,10 @@ export default function Devices() {
               </tr>
             ) : (
               devices.map((d) => {
-                const hasAlert = alerts.some((a) => a.device_id === d.id && !a.notified)
-                const s = statusLabel[hasAlert ? 'alert' : 'normal']
+                const latestAlert = alerts.filter((a) => a.device_id === d.id).at(0)
+                const age = latestAlert ? Date.now() - new Date(latestAlert.time).getTime() : Infinity
+                const status = latestAlert && age <= 60_000 ? latestAlert.severity.toLowerCase() : 'normal'
+                const s = statusLabel[status] ?? statusLabel.normal
                 return (
                   <tr
                     key={d.id}

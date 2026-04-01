@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Category2, Cpu, Notification, Shield } from 'iconsax-react'
+import { Category2, Cpu, Notification, Activity } from 'iconsax-react'
 
 const navItems = [
   { to: '/', icon: Category2, label: '대시보드' },
@@ -12,7 +12,7 @@ export default function Sidebar() {
     <aside className="w-56 bg-white border-r border-gray-100 flex flex-col py-6 px-4 shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-2 px-2 mb-10">
-        <Shield size={22} color="#3b82f6" variant="Bold" />
+        <Activity size={22} color="#3b82f6" variant="Bold" />
         <span className="text-base font-semibold text-gray-900 tracking-tight">LabGuard</span>
       </div>
 

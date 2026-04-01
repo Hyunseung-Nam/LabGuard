@@ -4,8 +4,11 @@ import AlertItem from '../components/AlertItem'
 import { api } from '../api/client'
 
 function deriveStatus(deviceId, alerts) {
-  const hasAlert = alerts.some((a) => a.device_id === deviceId && !a.notified)
-  return hasAlert ? 'alert' : 'normal'
+  const latest = alerts.filter((a) => a.device_id === deviceId).at(0)
+  if (!latest) return 'normal'
+  const age = Date.now() - new Date(latest.time).getTime()
+  if (age > 60_000) return 'normal'
+  return latest.severity.toLowerCase()
 }
 
 function formatTime(iso) {
@@ -21,7 +24,7 @@ function formatTime(iso) {
 }
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState({ total_devices: 0, alert_count: 0, unnotified_alert_count: 0 })
+  const [summary, setSummary] = useState({ total_devices: 0, alert_count: 0, alert_device_count: 0 })
   const [devices, setDevices] = useState([])
   const [alerts, setAlerts] = useState([])
   const [latestMap, setLatestMap] = useState({})  // device_id → 최신 측정값
@@ -37,7 +40,7 @@ export default function Dashboard() {
         ])
         setSummary(s)
         setDevices(d)
-        setAlerts(a.slice(0, 5))
+        setAlerts(a.slice(0, 20))
 
         // 각 장비의 최신 측정값 1건씩 병렬 조회
         const entries = await Promise.all(
@@ -66,8 +69,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: '전체 장비', value: summary.total_devices },
-    { label: '알림 (전체)', value: summary.alert_count },
-    { label: '미확인 알림', value: summary.unnotified_alert_count },
+    { label: '이상 장비', value: summary.alert_device_count },
   ]
 
   if (loading) {

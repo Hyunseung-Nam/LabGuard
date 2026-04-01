@@ -74,7 +74,7 @@ async def _check_threshold_and_alert(
 
     db.add(AlertEvent(
         device_id=device.id,
-        severity="ALERT",
+        severity="HIGH" if is_upper else "LOW",
         metric=metric,
         value=value,
         threshold=exceeded_threshold,

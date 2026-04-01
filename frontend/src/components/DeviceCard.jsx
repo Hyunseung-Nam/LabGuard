@@ -13,8 +13,8 @@ import { Cpu, ArrowUp } from 'iconsax-react'
 export default function DeviceCard({ name, location, metric, value, status }) {
   const statusConfig = {
     normal: { dot: 'bg-emerald-400', text: '정상', badge: 'text-emerald-600 bg-emerald-50' },
-    warning: { dot: 'bg-yellow-400', text: '경고', badge: 'text-yellow-600 bg-yellow-50' },
-    alert: { dot: 'bg-red-400 animate-pulse', text: '알림', badge: 'text-red-600 bg-red-50' },
+    high: { dot: 'bg-red-400 animate-pulse', text: '상한 초과', badge: 'text-red-600 bg-red-50' },
+    low: { dot: 'bg-blue-400 animate-pulse', text: '하한 미달', badge: 'text-blue-600 bg-blue-50' },
     offline: { dot: 'bg-gray-300', text: '오프라인', badge: 'text-gray-500 bg-gray-100' },
   }
 
