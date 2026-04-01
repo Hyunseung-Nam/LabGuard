@@ -20,18 +20,20 @@ async def _check_threshold_and_alert(
     device: Device,
     metric: str,
     value: float,
+    unit: str | None,
     measured_at: datetime,
 ) -> None:
     """
-    목적: 측정값이 장비 임계치를 초과하면 AlertEvent를 생성합니다.
+    목적: 측정값이 장비 임계치를 초과하면 AlertEvent를 생성하고 Telegram 알림을 발송합니다.
     Args:
         db: DB 세션.
         device: 장비 모델 인스턴스.
         metric: 측정 항목명 (temperature, pressure 등).
         value: 측정값.
+        unit: 단위 문자열 (°C, hPa 등).
         measured_at: 측정 시각 (쿨다운 기준).
     Returns: 없음.
-    Side Effects: 임계치 초과 시 AlertEvent를 DB에 추가합니다.
+    Side Effects: 임계치 초과 시 AlertEvent를 DB에 추가하고 Telegram 메시지를 발송합니다.
     Raises: 없음 (오류는 로그 처리).
     """
     threshold = (device.threshold or {}).get(metric)
@@ -41,17 +43,21 @@ async def _check_threshold_and_alert(
     min_val = threshold.get("min")
     max_val = threshold.get("max")
     exceeded_threshold = None
-    message = None
+    is_upper = False
 
     if max_val is not None and value > max_val:
         exceeded_threshold = max_val
-        message = f"[{device.name}] {metric} {value:.3f}이 상한값 {max_val}을 초과했습니다."
+        is_upper = True
     elif min_val is not None and value < min_val:
         exceeded_threshold = min_val
-        message = f"[{device.name}] {metric} {value:.3f}이 하한값 {min_val} 미만입니다."
+        is_upper = False
 
     if exceeded_threshold is None:
         return
+
+    unit_str = f" {unit}" if unit else ""
+    direction = f"상한 {exceeded_threshold} 초과" if is_upper else f"하한 {exceeded_threshold} 미달"
+    db_message = f"[{device.name}] {metric} {value:.3f}{unit_str} → {direction}"
 
     # 쿨다운: 동일 장비+측정항목 알림이 최근 N초 내 있으면 생성 안 함
     cooldown_since = measured_at - timedelta(seconds=settings.ALERT_COOLDOWN_SECONDS)
@@ -72,10 +78,20 @@ async def _check_threshold_and_alert(
         metric=metric,
         value=value,
         threshold=exceeded_threshold,
-        message=message,
+        message=db_message,
     ))
-    logger.warning("이상값 감지 → 알림 생성: %s", message)
-    await send_alert(f"⚠️ <b>LabGuard 알림</b>\n{message}")
+    logger.warning("이상값 감지 → 알림 생성: %s", db_message)
+
+    # 심각도별 이모지: 상한 초과 🔴 / 하한 미달 🔵
+    emoji = "🔴" if is_upper else "🔵"
+    time_str = measured_at.strftime("%H:%M:%S")
+    location = f"{device.location} · " if device.location else ""
+    telegram_message = (
+        f"{emoji} <b>{device.name}</b>\n"
+        f"{metric} {value:.3f}{unit_str} → {direction}\n"
+        f"{location}{time_str}"
+    )
+    await send_alert(telegram_message)
 
 
 @router.get("", response_model=list[MeasurementResponse])
@@ -133,7 +149,7 @@ async def create_measurement(payload: MeasurementCreate, db: AsyncSession = Depe
             if device:
                 await _check_threshold_and_alert(
                     db, device, payload.metric, payload.raw_value,
-                    measurement.time or datetime.now(),
+                    payload.unit, measurement.time or datetime.now(),
                 )
 
         await db.commit()
