@@ -10,6 +10,10 @@ class DeviceCreate(BaseModel):
     threshold: dict | None = None
 
 
+class DeviceUpdate(BaseModel):
+    threshold: dict | None = None
+
+
 class DeviceResponse(BaseModel):
     id: str
     name: str

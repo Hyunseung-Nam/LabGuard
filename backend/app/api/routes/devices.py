@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.device import Device
-from app.schemas.device import DeviceCreate, DeviceResponse
+from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/devices", tags=["devices"])
@@ -64,6 +64,34 @@ async def create_device(payload: DeviceCreate, db: AsyncSession = Depends(get_db
         await db.rollback()
         logger.error("장비 등록 실패: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="장비 등록에 실패했습니다.")
+
+
+@router.patch("/{device_id}", response_model=DeviceResponse)
+async def update_device(device_id: str, payload: DeviceUpdate, db: AsyncSession = Depends(get_db)):
+    """
+    목적: 장비 설정(임계치 등)을 업데이트합니다.
+    Args:
+        device_id: 장비 UUID.
+        payload (DeviceUpdate): 업데이트할 필드 (threshold).
+    Returns: DeviceResponse - 업데이트된 장비.
+    Raises: 404 - 장비 없음. 500 - DB 오류.
+    """
+    try:
+        device = await db.get(Device, device_id)
+        if not device:
+            raise HTTPException(status_code=404, detail="장비를 찾을 수 없습니다.")
+        if payload.threshold is not None:
+            device.threshold = payload.threshold
+        await db.commit()
+        await db.refresh(device)
+        logger.info("장비 업데이트: device_id=%s", device_id)
+        return device
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error("장비 업데이트 실패: device_id=%s, %s", device_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="장비 업데이트에 실패했습니다.")
 
 
 @router.delete("/{device_id}", status_code=204)

@@ -18,6 +18,8 @@ export default function DeviceDetail() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [timeRange, setTimeRange] = useState('5m')  // '1m' | '5m' | 'all'
+  const [thresholds, setThresholds] = useState({})   // { metric: { min, max } }
+  const [savingThreshold, setSavingThreshold] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -27,6 +29,7 @@ export default function DeviceDetail() {
           api.getMeasurements(id, { limit: 100 }),
         ])
         setDevice(dev)
+        setThresholds(dev.threshold ?? {})
         const sorted = [...meas].sort((a, b) => new Date(a.time) - new Date(b.time))
         setMeasurements(sorted)
       } catch (e) {
@@ -41,6 +44,25 @@ export default function DeviceDetail() {
     const timer = setInterval(load, 5000)
     return () => clearInterval(timer)
   }, [id])
+
+  async function handleSaveThreshold() {
+    setSavingThreshold(true)
+    try {
+      await api.updateDevice(id, { threshold: thresholds })
+    } catch (e) {
+      console.error('임계치 저장 실패:', e)
+      alert('임계치 저장에 실패했습니다.')
+    } finally {
+      setSavingThreshold(false)
+    }
+  }
+
+  function handleThresholdChange(metric, field, value) {
+    setThresholds((prev) => ({
+      ...prev,
+      [metric]: { ...prev[metric], [field]: value === '' ? undefined : Number(value) },
+    }))
+  }
 
   async function handleDelete() {
     if (!confirm(`"${device.name}" 장비를 삭제하시겠습니까?`)) return
@@ -113,6 +135,49 @@ export default function DeviceDetail() {
         >
           {deleting ? '삭제 중...' : '장비 삭제'}
         </button>
+      </div>
+
+      {/* 임계치 설정 */}
+      <div className="bg-white border border-gray-100 rounded-xl p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">임계치 설정</h2>
+        {Object.keys(metricGroups).length === 0 ? (
+          <p className="text-sm text-gray-300">측정 데이터가 없어 설정할 항목이 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {Object.keys(metricGroups).map((metric) => (
+              <div key={metric} className="flex items-center gap-4">
+                <span className="text-sm text-gray-500 w-28 uppercase">{metric}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">최솟값</span>
+                  <input
+                    type="number"
+                    value={thresholds[metric]?.min ?? ''}
+                    onChange={(e) => handleThresholdChange(metric, 'min', e.target.value)}
+                    placeholder="없음"
+                    className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">최댓값</span>
+                  <input
+                    type="number"
+                    value={thresholds[metric]?.max ?? ''}
+                    onChange={(e) => handleThresholdChange(metric, 'max', e.target.value)}
+                    placeholder="없음"
+                    className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={handleSaveThreshold}
+              disabled={savingThreshold}
+              className="self-start mt-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-sm px-4 py-1.5 rounded-lg transition-colors"
+            >
+              {savingThreshold ? '저장 중...' : '저장'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 측정항목별 그래프 */}

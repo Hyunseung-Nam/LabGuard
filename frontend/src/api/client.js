@@ -23,6 +23,7 @@ export const api = {
   getDevices: () => request('/devices'),
   getDevice: (id) => request(`/devices/${id}`),
   createDevice: (data) => request('/devices', { method: 'POST', body: JSON.stringify(data) }),
+  updateDevice: (id, data) => request(`/devices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteDevice: (id) => request(`/devices/${id}`, { method: 'DELETE' }),
 
   // 측정값

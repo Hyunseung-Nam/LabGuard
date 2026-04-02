@@ -92,10 +92,14 @@ LabGuard는 이 공백을 채웁니다.
 
 **Edge Agent**
 - RS-232로 실험 장비에서 측정값을 읽어 LabGuard 서버로 전송 (`edge_agent/`)
-- 타겟 장비: JEIO TECH 항온항습기 (WBTC/WEVC 시리즈)
-- 드라이버 구조: `arduino_json` (테스트용) / `jeiotech` (실제 장비)
+- 드라이버 구조: 테스트용 / 실제 장비용 분리
 - 포트 자동 감지, 연결 끊김 시 자동 재연결
-- Arduino 에뮬레이터 스케치 포함 (`edge_agent/emulator/emulator.ino`)
+- Arduino 센서 스케치 포함 (DHT22/DHT11 온습도 센서 지원)
+- `bash setup.sh` 한 번으로 설치 완료
+
+**임계치 설정 UI**
+- 장비 상세 페이지에서 측정 항목별 최솟값/최댓값 직접 설정
+- 저장 즉시 이상값 감지에 반영
 
 ---
 
