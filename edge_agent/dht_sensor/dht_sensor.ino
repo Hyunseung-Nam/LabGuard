@@ -29,7 +29,7 @@
 #include <DHT.h>
 
 #define SENSOR_PIN  2       // DATA 핀 연결 위치
-#define SENSOR_TYPE DHT22   // DHT22 또는 DHT11
+#define SENSOR_TYPE DHT11   // DHT22 또는 DHT11
 
 DHT dht(SENSOR_PIN, SENSOR_TYPE);
 
