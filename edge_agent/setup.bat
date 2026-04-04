@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 REM LabGuard Edge Agent 설치 스크립트 (Windows)
 REM 실행: cd edge_agent && setup.bat
 
